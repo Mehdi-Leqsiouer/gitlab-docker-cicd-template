@@ -1,0 +1,44 @@
+variables:
+  DOCKER_IMAGE_VERSION: $CI_COMMIT_SHORT_SHA
+
+  GCP_POOL_ID: orange-pool
+  GCP_PROVIDER_ID: gitlab-tech-orange
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/${GCP_PROJECT_ID}/locations/global/workloadIdentityPools/$GCP_POOL_ID/providers/$GCP_PROVIDER_ID
+
+stages:
+  - authenticate
+  - publish-docker
+
+
+gcp-auth:
+  stage: authenticate
+  image: google/cloud-sdk:latest
+  script:
+    - echo ${CI_JOB_JWT_V2} > .ci_job_jwt_file
+    - gcloud iam workload-identity-pools create-cred-config ${GCP_WORKLOAD_IDENTITY_PROVIDER}
+      --service-account="${GCP_SERVICE_ACCOUNT}"
+      --output-file=.gcp_temp_cred.json
+      --credential-source-file=$CI_PROJECT_DIR/.ci_job_jwt_file
+    - gcloud auth login --cred-file=.gcp_temp_cred.json
+    - gcloud auth print-access-token > .access_token
+  artifacts:
+    paths:
+      - .access_token
+    expire_in: 1 day
+
+
+gcloud-build:
+  services:
+    - docker:dind
+  image: docker
+  stage: publish-docker
+  needs: ["gcp-auth"]
+  script:
+    - export DOCKER_GCP_RELEASE_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_NAME}/${GCP_ARTIFACT_REGISTRY}/${IMAGE_NAME}:$DOCKER_IMAGE_VERSION"
+    - export DOCKER_GCP_LATEST_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_NAME}/${GCP_ARTIFACT_REGISTRY}/${IMAGE_NAME}:latest"
+    - docker build --no-cache . -t $DOCKER_GCP_RELEASE_IMAGE -t $DOCKER_GCP_LATEST_IMAGE
+    - cat .access_token | docker login -u oauth2accesstoken --password-stdin https://${GCP_REGION}-docker.pkg.dev
+    - docker push $DOCKER_GCP_RELEASE_IMAGE
+    - docker push $DOCKER_GCP_LATEST_IMAGE
+  tags:
+    - graas-dind
