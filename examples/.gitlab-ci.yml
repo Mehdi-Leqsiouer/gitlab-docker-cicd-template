@@ -1,0 +1,26 @@
+# included templates
+include:
+  # Python template
+  - project: "badgerworks/cicd-template/docker-buildpush-template"
+    ref: 'main'
+    file: "docker-buildpush.yml"
+
+variables:
+  GCP_REGION: europe-west3
+  IMAGE_NAME: my-app
+
+
+workflow:
+  rules:
+  - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop" || ($CI_COMMIT_REF_NAME == "develop" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == null)
+    variables:
+      GCP_ENV: "dev"
+      GCP_PROJECT_ID: 413254456010
+      GCP_PROJECT_NAME: sbx-31371-mzmh413ihv4ixf1v68lv
+      GCP_SERVICE_ACCOUNT: sa-for-cicd-dev@sbx-31371-mzmh413ihv4ixf1v68lv.iam.gserviceaccount.com
+      GCP_ARTIFACT_REGISTRY: fr-temperature-base-image-dev
+      DESTROY_ENABLE: true
+
+stages:
+  - authenticate
+  - publish-docker
