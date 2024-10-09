@@ -1,8 +1,8 @@
 variables:
   DOCKER_IMAGE_VERSION: $CI_COMMIT_SHORT_SHA
 
-  GCP_POOL_ID: orange-pool
-  GCP_PROVIDER_ID: gitlab-tech-orange
+  GCP_POOL_ID: pool
+  GCP_PROVIDER_ID: gitlab-tech
   GCP_WORKLOAD_IDENTITY_PROVIDER: projects/${GCP_PROJECT_ID}/locations/global/workloadIdentityPools/$GCP_POOL_ID/providers/$GCP_PROVIDER_ID
 
 stages:
